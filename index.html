@@ -937,6 +937,7 @@
       selectedWord = null;
       selectedPic = null;
       totalScore = 0;
+      spellingSolved = Array(MATCH_ITEMS.length).fill(false);
       updateScoreDisplay();
       showToast(true, "تمت إعادة تعيين تمرين التوصيل 🔄");
     }
@@ -947,21 +948,44 @@
     let currentSpellingIndex = 0;
     let placedLetters = []; // array of { char, originalTileId }
     let scrambledLetters = [];
+    let spellingSolved = Array(MATCH_ITEMS.length).fill(false);
 
     function initSpellingActivity() {
-      // Build pills
+      renderSpellingPills();
+      loadSpellingWord(0);
+    }
+
+    function renderSpellingPills() {
       const pillContainer = document.getElementById('spellingPillList');
+      if (!pillContainer) return;
       pillContainer.innerHTML = '';
+
       MATCH_ITEMS.forEach((item, idx) => {
         const b = document.createElement('button');
         b.id = `spellPill-${idx}`;
-        b.className = `px-3 py-1 rounded-xl font-black text-xs en-font transition shadow-2xs ${idx === currentSpellingIndex ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`;
-        b.textContent = `${idx + 1}. ${item.word}`;
+        const isCurrent = (idx === currentSpellingIndex);
+        const isSolved = spellingSolved[idx];
+
+        let styleClass = 'px-3 py-1.5 rounded-xl font-black text-xs transition shadow-2xs ';
+        if (isCurrent) {
+          styleClass += 'bg-sky-600 text-white ';
+        } else if (isSolved) {
+          styleClass += 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 ';
+        } else {
+          styleClass += 'bg-slate-100 text-slate-700 hover:bg-slate-200 ';
+        }
+        b.className = styleClass;
+
+        // إخفاء اسم الكلمة حتى يتم حلها بنجاح
+        if (isSolved) {
+          b.textContent = `${idx + 1}. ${item.word} ✅`;
+        } else {
+          b.textContent = `الكلمة ${idx + 1} ❓`;
+        }
+
         b.onclick = () => loadSpellingWord(idx);
         pillContainer.appendChild(b);
       });
-
-      loadSpellingWord(0);
     }
 
     function loadSpellingWord(idx) {
@@ -969,15 +993,17 @@
       currentSpellingIndex = idx;
       placedLetters = [];
 
-      // Update pills UI
-      document.querySelectorAll('#spellingPillList button').forEach((b, i) => {
-        b.className = `px-3 py-1 rounded-xl font-black text-xs en-font transition shadow-2xs ${i === idx ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`;
-      });
+      renderSpellingPills();
 
       const item = MATCH_ITEMS[idx];
       const wordClean = item.word.toLowerCase();
-      document.getElementById('spellingProgressText').textContent = `الكلمة: ${idx + 1} من 8 (${item.ar})`;
-      document.getElementById('spellingAudioHint').textContent = `استمع لنطق (${item.word})`;
+      const isSolved = spellingSolved[idx];
+
+      // عدم كشف اسم الكلمة إلا إذا تم حلها مسبقاً
+      document.getElementById('spellingProgressText').textContent = isSolved
+        ? `الكلمة: ${idx + 1} من 8 (${item.word} - ${item.ar})`
+        : `الكلمة: ${idx + 1} من 8`;
+      document.getElementById('spellingAudioHint').textContent = "استمع لنطق الكلمة 🔊";
 
       // Render Image matching item
       renderSpellingImage(item.letter);
@@ -1077,6 +1103,11 @@
         totalScore += 2;
         updateScoreDisplay();
 
+        // وسم الكلمة بأنها حُلّت بنجاح وإظهار اسمها في الزر العلوي
+        spellingSolved[currentSpellingIndex] = true;
+        renderSpellingPills();
+        document.getElementById('spellingProgressText').textContent = `الكلمة: ${currentSpellingIndex + 1} من 8 (${MATCH_ITEMS[currentSpellingIndex].word} - ${MATCH_ITEMS[currentSpellingIndex].ar})`;
+
         for (let i = 0; i < targetWord.length; i++) {
           const slot = document.getElementById(`spellSlot-${i}`);
           slot.className = "letter-slot w-10 h-12 sm:w-12 sm:h-14 rounded-t-xl flex items-center justify-center font-black en-font text-2xl sm:text-3xl filled-correct pop-success";
@@ -1122,6 +1153,9 @@
         slot.className = "letter-slot w-10 h-12 sm:w-12 sm:h-14 rounded-t-xl flex items-center justify-center font-black en-font text-2xl sm:text-3xl filled-correct";
       });
       renderTilesBank();
+      spellingSolved[currentSpellingIndex] = true;
+      renderSpellingPills();
+      document.getElementById('spellingProgressText').textContent = `الكلمة: ${currentSpellingIndex + 1} من 8 (${MATCH_ITEMS[currentSpellingIndex].word} - ${MATCH_ITEMS[currentSpellingIndex].ar})`;
       speaker.speakEnglish(MATCH_ITEMS[currentSpellingIndex].word);
       showToast(true, "مساعدة التهجئة", `الكلمة الصحيحة هي: ${MATCH_ITEMS[currentSpellingIndex].word}`);
     }
